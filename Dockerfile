@@ -1,3 +1,4 @@
+# Usa una imagen oficial de PHP con Apache
 FROM php:8.2-apache
 
 # Instala extensiones necesarias
@@ -17,29 +18,27 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 # Establece el directorio de trabajo
 WORKDIR /var/www/html
 
-# Copia primero composer.json y composer.lock (si existen)
+# Copia archivos composer para usar caché
 COPY composer.json composer.lock* ./
 
-# Ejecuta composer install solo si composer.json está presente
-RUN if [ -f composer.json ]; then \
-      COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader; \
-    fi
+# Instala dependencias sin scripts (evita errores de producción)
+RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-scripts
 
-# Copia el resto de los archivos
+# Copia todo el proyecto
 COPY . .
 
-# Crea archivo SQLite y da permisos necesarios
+# Prepara SQLite y permisos necesarios
 RUN mkdir -p database && \
     touch database/database.sqlite && \
     chmod -R 777 database database/database.sqlite storage bootstrap/cache
 
-# Copia .env de ejemplo si no hay uno (Render usa variables de entorno)
+# Copia .env si no existe
 RUN cp .env.example .env || true
 
-# Genera APP_KEY si no existe
+# Genera clave de aplicación (Render requiere que la guardes en el panel)
 RUN php artisan key:generate || true
 
-# Configura Apache para servir Laravel desde /public
+# Configura Apache para servir desde /public
 RUN echo '<VirtualHost *:80>' > /etc/apache2/sites-available/000-default.conf && \
     echo '    DocumentRoot /var/www/html/public' >> /etc/apache2/sites-available/000-default.conf && \
     echo '    <Directory /var/www/html/public>' >> /etc/apache2/sites-available/000-default.conf && \
@@ -51,6 +50,8 @@ RUN echo '<VirtualHost *:80>' > /etc/apache2/sites-available/000-default.conf &&
 # Habilita mod_rewrite y headers
 RUN a2enmod rewrite headers
 
+# Expone el puerto web
 EXPOSE 80
 
+# Inicia Apache
 CMD ["apache2-foreground"]
