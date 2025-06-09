@@ -21,7 +21,7 @@ WORKDIR /var/www/html
 
 # Copia los archivos necesarios de Composer y descarga dependencias
 COPY composer.json composer.lock* ./
-RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader
+RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-scripts
 
 # Copia el resto del proyecto
 COPY . .
